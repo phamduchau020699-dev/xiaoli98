@@ -1,0 +1,20 @@
+# Render Blueprint: Dashboard > New > Blueprint > chọn repo GitHub chứa thư mục này
+services:
+  - type: web
+    name: xiaoli98
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: SECRET          # tự sinh chuỗi bí mật ký đăng nhập
+        generateValue: true
+      - key: MONGODB_URI     # dán chuỗi kết nối MongoDB Atlas (xem docs/HUONG-DAN.md)
+        sync: false
+      - key: TURN_URL        # tùy chọn: máy chủ TURN để gọi điện khác mạng
+        sync: false
+      - key: TURN_USER
+        sync: false
+      - key: TURN_CRED
+        sync: false

@@ -1,0 +1,136 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Xiaoli98</title><link rel="icon" href="logo.svg"><link rel="apple-touch-icon" href="icon-192.png"><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#0A6CFF">
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:#f2f4f8;color:#111}
+#app{max-width:520px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;background:#fff}
+header{background:#0A6CFF;color:#fff;padding:14px 16px;font-weight:600;display:flex;align-items:center;gap:10px;padding-top:max(14px,env(safe-area-inset-top))}
+header button{background:none;border:0;color:#fff;font-size:20px}header .sp{flex:1}
+main{flex:1;overflow:auto}nav{display:flex;border-top:1px solid #e3e6ec;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;padding:12px 0;border:0;background:#fff;color:#777;font-size:13px}nav button.on{color:#0A6CFF;font-weight:700}
+.row{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid #f0f1f4;align-items:center}
+.av{width:42px;height:42px;border-radius:10px;background:#0A6CFF;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.row .t{flex:1;min-width:0}.row .t b{display:block}.row .t span{color:#888;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.msgs{padding:12px;display:flex;flex-direction:column;gap:8px;background:#eef1f6;min-height:100%}
+.b{max-width:75%;padding:9px 12px;border-radius:10px;background:#fff;word-break:break-word;align-self:flex-start}
+.b.me{background:#bcd8ff;align-self:flex-end}.b small{display:block;color:#888;font-size:11px}.b img{max-width:100%;border-radius:8px;display:block}
+.bar{display:flex;gap:8px;padding:8px;border-top:1px solid #e3e6ec;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+input,textarea{font:inherit;padding:10px;border:1px solid #d5d9e2;border-radius:8px;width:100%}.bar input{flex:1}
+.btn{background:#0A6CFF;color:#fff;border:0;border-radius:8px;padding:10px 16px;font:inherit}.btn.gr{background:#e8edf5;color:#0A6CFF}
+.form{padding:24px;display:flex;flex-direction:column;gap:12px}.err{color:#d33;font-size:14px}
+.mom{padding:12px 16px;border-bottom:1px solid #f0f1f4}.mom img{max-width:100%;border-radius:8px;margin-top:6px}
+.call{position:fixed;inset:0;background:#0b1b33;color:#fff;z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.call video#rv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}.call video#lv{position:absolute;right:12px;top:12px;width:100px;border-radius:10px;background:#222;z-index:2}
+.call .ct{position:relative;z-index:2;text-align:center;text-shadow:0 1px 4px #000}.call .cb{position:absolute;bottom:max(24px,env(safe-area-inset-bottom));z-index:2;display:flex;gap:10px}
+.call .cb button{border:0;border-radius:30px;padding:14px 18px;font:inherit;background:#ffffff33;color:#fff}.call .cb .rd{background:#e5392f}.call .cb .gn{background:#1fa855}
+.sm{padding:6px 10px;font-size:13px}.bdg{background:#e5392f;color:#fff;border-radius:9px;padding:0 6px;font-size:11px;margin-left:3px}header select{border-radius:6px;border:0;padding:4px}
+</style></head><body><div id="app"></div><script src="/socket.io/socket.io.js"></script><script src="i18n.js"></script><script>
+const $=s=>document.querySelector(s),A=$('#app');
+let T=localStorage.t,ME=null,tab='chats',cur=null,sock=null,mode='login',PEND=0,CALL=null;
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const api=async(p,m='GET',b)=>{const r=await fetch('/api/'+p,{method:m,headers:{'Content-Type':'application/json',Authorization:'Bearer '+T},body:b?JSON.stringify(b):undefined});
+ const d=await r.json();if(!r.ok){if(r.status===401&&T)logout();throw new Error(d.error||'Error')}return d};
+const av=n=>`<div class="av">${esc((n||'?')[0].toUpperCase())}</div>`;
+const tm=x=>x?new Date(x).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'';
+function logout(){localStorage.removeItem('t');T=null;location.reload()}
+function loginView(e=''){A.innerHTML=`<header>Xiaoli98<span class="sp"></span>${langSel()}</header><div class="form"><img src="logo.svg" width="90" style="align-self:center">
+<h2 style="text-align:center;margin:0">${mode==='login'?t('login'):t('createAcc')}</h2>
+${mode==='reg'?`<input id="nm" placeholder="${t('displayName')}">`:''}<input id="un" placeholder="${t('username')}" autocapitalize="off"><input id="pw" type="password" placeholder="${t('password')}">
+<div class="err">${esc(e)}</div><button class="btn" id="go">${mode==='login'?t('login'):t('register')}</button>
+<button class="btn gr" id="sw">${mode==='login'?t('noAcc'):t('haveAcc')}</button><a href="privacy.html" target="_blank" style="text-align:center;color:#0A6CFF">${t('privacy')}</a></div>`;
+ bindLang(()=>loginView());
+ $('#sw').onclick=()=>{mode=mode==='login'?'reg':'login';loginView()};
+ $('#go').onclick=async()=>{try{const d=await api(mode==='login'?'login':'register','POST',{username:$('#un').value,password:$('#pw').value,name:$('#nm')?.value});
+  T=d.token;localStorage.t=T;start()}catch(x){loginView(x.message)}}}
+const langSel=()=>`<select id="lg">${Object.keys(L).map(k=>`<option value="${k}" ${k===lang?'selected':''}>${L[k].name}</option>`).join('')}</select>`;
+const bindLang=cb=>{$('#lg').onchange=e=>{lang=e.target.value;localStorage.lang=lang;cb()}};
+async function start(){try{ME=await api('me')}catch(e){return loginView()}
+ sock=io({auth:{token:T}});sock.on('refresh',()=>!cur&&!CALL&&show());
+ sock.on('msg',({chat,m})=>{if(cur&&cur.id===chat)addMsg(m);else if(!cur&&!CALL)show();else notify(m)});
+ callEvents();initPush();show()}
+function notify(m){if(window.Notification&&Notification.permission==='granted')new Notification(m.name,{body:m.text||'[img]'})}
+function shell(title,body,extra=''){A.innerHTML=`<header><span>${title}</span><span class="sp"></span>${extra}</header><main id="mn">${body}</main>
+<nav>${[['chats',t('chats')],['friends',t('contacts')+(PEND?`<span class="bdg">${PEND}</span>`:'')],['moments',t('moments')],['me',t('me')]].map(([k,l])=>`<button class="${tab===k?'on':''}" data-k="${k}">${l}</button>`).join('')}</nav>`;
+ A.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.k;show()})}
+async function show(){cur=null;try{PEND=(await api('requests')).length}catch(e){}
+ if(tab==='chats'){const c=await api('chats');shell('Xiaoli98',c.map(x=>`<div class="row" data-id="${x.id}" data-t="${esc(x.title)}">${av(x.title)}<div class="t"><b>${esc(x.title)}</b><span>${esc(x.last)}</span></div><small>${tm(x.t)}</small></div>`).join('')||`<p style="padding:24px;color:#888">${t('noChats')}</p>`,`<button id="ng">${t('newGroup')}</button>`);
+  A.querySelectorAll('.row').forEach(r=>r.onclick=()=>openChat(r.dataset.id,r.dataset.t));$('#ng').onclick=newGroup}
+ if(tab==='friends')await friendsTab();
+ if(tab==='moments'){const m=await api('moments');shell(t('moments'),`<div class="mom"><textarea id="mt" rows="2" placeholder="${t('thinking')}"></textarea><input type="file" id="mf" accept="image/*"><br><button class="btn" id="mp" style="margin-top:6px">${t('post')}</button></div>`+
+  m.map(x=>`<div class="mom"><b>${esc(x.name)}</b> <small>${new Date(x.t).toLocaleString()}</small><div>${esc(x.text)}</div>${x.image?`<img src="${x.image}">`:''}</div>`).join(''));
+  $('#mp').onclick=async()=>{const im=$('#mf').files[0]?await img($('#mf').files[0]):undefined;try{await api('moments','POST',{text:$('#mt').value,image:im});show()}catch(e){alert(e.message)}}}
+ if(tab==='me'){const bl=await api('blocks');shell(t('me'),`<div class="row">${av(ME.name)}<div class="t"><b>${esc(ME.name)}</b><span>ID: @${ME.username}</span></div></div>
+  <div class="row"><b>${t('language')}</b><span class="sp"></span>${langSel()}</div>
+  <div class="row"><b>${t('blockedList')} (${bl.length})</b></div>${bl.map(x=>`<div class="row">${av(x.name)}<div class="t"><b>${esc(x.name)}</b><span>@${x.username}</span></div><button class="btn gr sm" data-ub="${x.username}">${t('unblock')}</button></div>`).join('')}
+  <div class="form"><button class="btn gr" id="nt">${t('notif')}</button><button class="btn" id="lo">${t('logout')}</button><button class="btn gr" id="dl" style="color:#d33">${t('delAcc')}</button><a href="privacy.html" target="_blank" style="text-align:center;color:#0A6CFF">${t('privacy')}</a></div>`);
+  bindLang(show);A.querySelectorAll('[data-ub]').forEach(b=>b.onclick=async()=>{await api('blocks/'+b.dataset.ub,'DELETE');show()});
+  $('#lo').onclick=logout;$('#nt').onclick=enablePush;$('#dl').onclick=delAccount}}
+async function friendsTab(){const [f,rq]=await Promise.all([api('friends'),api('requests')]);
+ shell(t('contacts'),`<div class="row"><input id="fu" placeholder="${t('searchPh')}"><button class="btn" id="sb">${t('search')}</button></div><div id="sr"></div>
+ ${rq.length?`<div class="row"><b>${t('requests')} (${rq.length})</b></div>`:''}${rq.map(r=>`<div class="row">${av(r.name)}<div class="t"><b>${esc(r.name)}</b><span>@${r.from}</span></div>
+ <button class="btn sm" data-ac="${r.id}">${t('accept')}</button><button class="btn gr sm" data-dc="${r.id}">${t('decline')}</button></div>`).join('')}
+ ${f.map(x=>`<div class="row" data-id="u:${x.username}" data-t="${esc(x.name)}">${av(x.name)}<div class="t"><b>${esc(x.name)}</b><span>@${x.username}</span></div></div>`).join('')}`);
+ const act=(sel,key,path)=>A.querySelectorAll(sel).forEach(b=>b.onclick=async()=>{await api(`requests/${b.dataset[key]}/${path}`,'POST');show()});
+ act('[data-ac]','ac','accept');act('[data-dc]','dc','decline');
+ A.querySelectorAll('.row[data-id]').forEach(r=>r.onclick=()=>openChat(r.dataset.id,r.dataset.t));
+ const doSearch=async()=>{const q=$('#fu').value.trim();if(q.length<2)return;const r=await api('users/search?q='+encodeURIComponent(q));
+  const lab={friend:t('isFriend'),sent:t('sent'),received:t('received'),blocked:t('blockedTag')};
+  $('#sr').innerHTML=r.map(u=>`<div class="row">${av(u.name)}<div class="t"><b>${esc(u.name)}</b><span>@${u.username}</span></div>${u.relation==='none'?`<button class="btn sm" data-add="${u.username}">${t('addFriend')}</button>`:`<small>${lab[u.relation]}</small>`}</div>`).join('')||`<p style="padding:12px 16px;color:#888">${t('noResult')}</p>`;
+  $('#sr').querySelectorAll('[data-add]').forEach(b=>b.onclick=async()=>{try{const d=await api('requests','POST',{username:b.dataset.add});alert(d.friends?t('nowFriends'):t('reqSent'));doSearch()}catch(e){alert(e.message)}})};
+ $('#sb').onclick=doSearch;$('#fu').onkeydown=e=>{if(e.key==='Enter')doSearch()}}
+async function newGroup(){const f=await api('friends');const n=prompt(t('groupName'));if(!n)return;
+ const ids=prompt(t('groupMembers')+f.map(x=>x.username).join(', '));if(!ids)return;
+ try{await api('groups','POST',{name:n,members:ids.split(',').map(s=>s.trim().toLowerCase())});show()}catch(e){alert(e.message)}}
+const img=f=>new Promise(r=>{const i=new Image;i.onload=()=>{const k=Math.min(1,900/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*k;c.height=i.height*k;
+ c.getContext('2d').drawImage(i,0,0,c.width,c.height);r(c.toDataURL('image/jpeg',.7))};i.src=URL.createObjectURL(f)});
+function bub(m){return `<div class="b ${m.from===ME.username?'me':''}">${cur.id[0]==='g'&&m.from!==ME.username?`<small>${esc(m.name)}</small>`:''}${esc(m.text)}${m.image?`<img src="${m.image}">`:''}</div>`}
+function addMsg(m){$('#ml').insertAdjacentHTML('beforeend',bub(m));$('#mn').scrollTop=1e9}
+async function openChat(id,title){cur={id};const dm=id[0]==='u',peer=id.slice(2);const ms=await api('messages?chat='+encodeURIComponent(id));
+ A.innerHTML=`<header><button id="bk">‹</button><span>${esc(title)}</span><span class="sp"></span>${dm?`<button class="sm" id="cv">${t('voice')}</button><button class="sm" id="cc">${t('video')}</button><button class="sm" id="cbk">${t('block')}</button><button class="sm" id="crp">${t('report')}</button>`:''}</header><main id="mn"><div class="msgs" id="ml"></div></main>
+ <div class="bar"><input type="file" id="pf" accept="image/*" hidden><button class="btn gr" id="pi">+</button><input id="tx" placeholder="${t('typeMsg')}"><button class="btn" id="sd">${t('send')}</button></div>`;
+ $('#ml').innerHTML=ms.map(bub).join('');$('#mn').scrollTop=1e9;$('#bk').onclick=show;
+ if(dm){$('#cv').onclick=()=>startCall(peer,title,false);$('#cc').onclick=()=>startCall(peer,title,true);
+  $('#crp').onclick=async()=>{const r=prompt(t('reportWhy'));if(!r)return;try{await api('reports','POST',{username:peer,reason:r.slice(0,200)});alert(t('reported'))}catch(e){alert(e.message)}};
+  $('#cbk').onclick=async()=>{if(confirm(t('confirmBlock'))){await api('blocks','POST',{username:peer});tab='friends';show()}}}
+ const send=async image=>{const x=$('#tx').value.trim();if(!x&&!image)return;$('#tx').value='';try{await api('messages','POST',{chat:id,text:x,image})}catch(e){alert(e.message)}};
+ $('#sd').onclick=()=>send();$('#tx').onkeydown=e=>{if(e.key==='Enter')send()};$('#pi').onclick=()=>$('#pf').click();
+ $('#pf').onchange=async e=>{if(e.target.files[0])send(await img(e.target.files[0]))}}
+// ===== Gọi thoại / video (WebRTC) =====
+const media=(video,facing='user')=>navigator.mediaDevices.getUserMedia({audio:true,video:video?{facingMode:facing}:false});
+function callUI(name,status,incoming){document.querySelector('.call')?.remove();const d=document.createElement('div');d.className='call';
+ d.innerHTML=`<video id="rv" autoplay playsinline></video><video id="lv" autoplay playsinline muted ${CALL.video?'':'hidden'}></video><div class="ct"><h2>${esc(name)}</h2><div id="cs">${status}</div></div>
+ <div class="cb">${incoming?`<button class="gn" id="ca">${t('accept')}</button><button class="rd" id="cr">${t('decline')}</button>`:
+ `<button id="cm">${t('mute')}</button>${CALL.video?`<button id="cx">${t('cam')}</button><button id="cf">${t('flip')}</button>`:''}<button class="rd" id="ce">${t('end')}</button>`}</div>`;
+ document.body.appendChild(d);if(CALL.stream)$('#lv').srcObject=CALL.stream;
+ if(incoming){$('#ca').onclick=acceptCall;$('#cr').onclick=()=>{sock.emit('call:reject',{to:CALL.peer});hang(false)}}
+ else{$('#ce').onclick=()=>hang(true);$('#cm').onclick=e=>{const a=CALL.stream.getAudioTracks()[0];a.enabled=!a.enabled;e.target.style.opacity=a.enabled?1:.5};
+  if(CALL.video){$('#cx').onclick=e=>{const v=CALL.stream.getVideoTracks()[0];v.enabled=!v.enabled;e.target.style.opacity=v.enabled?1:.5};
+   $('#cf').onclick=async()=>{CALL.face=CALL.face==='environment'?'user':'environment';try{const n=await media(true,CALL.face),vt=n.getVideoTracks()[0];
+    const snd=CALL.pc?.getSenders().find(s=>s.track?.kind==='video');if(snd)await snd.replaceTrack(vt);CALL.stream.getVideoTracks().forEach(x=>{x.stop();CALL.stream.removeTrack(x)});CALL.stream.addTrack(vt);$('#lv').srcObject=CALL.stream;n.getAudioTracks().forEach(x=>x.stop())}catch(e){}}}}}
+function mkPC(){const pc=new RTCPeerConnection({iceServers:CALL.ice});CALL.stream.getTracks().forEach(x=>pc.addTrack(x,CALL.stream));
+ pc.onicecandidate=e=>e.candidate&&sock.emit('call:ice',{to:CALL.peer,data:e.candidate});pc.ontrack=e=>{$('#rv').srcObject=e.streams[0];$('#cs').textContent=''};
+ pc.onconnectionstatechange=()=>{if(CALL&&['failed','closed'].includes(pc.connectionState))hang(true)};CALL.pc=pc;CALL.q=[];return pc}
+async function startCall(peer,name,video){if(CALL)return;try{CALL={peer,video,name,ice:(await api('ice')).iceServers,stream:await media(video)}}catch(e){CALL=null;return alert(t('mediaErr'))}
+ callUI(name,t('calling'));sock.emit('call:invite',{to:peer,video})}
+async function acceptCall(){const c=CALL;try{c.stream=await media(c.video);c.ice=(await api('ice')).iceServers}catch(e){sock.emit('call:reject',{to:c.peer});hang(false);return alert(t('mediaErr'))}
+ callUI(c.name,'',false);sock.emit('call:accept',{to:c.peer})}
+function hang(local,msg){if(!CALL)return;if(local)sock.emit('call:end',{to:CALL.peer});CALL.stream?.getTracks().forEach(x=>x.stop());CALL.pc?.close();CALL=null;document.querySelector('.call')?.remove();if(msg)alert(msg);if(!cur)show()}
+function callEvents(){
+ sock.on('call:incoming',d=>{if(CALL)return;CALL={peer:d.from,name:d.name,video:d.video};callUI(d.name,d.video?t('incomingVideo'):t('incomingVoice'),true)});
+ sock.on('call:accepted',async()=>{if(!CALL)return;const pc=mkPC();await pc.setLocalDescription(await pc.createOffer());sock.emit('call:offer',{to:CALL.peer,data:pc.localDescription})});
+ sock.on('call:offer',async({data})=>{if(!CALL?.stream)return;const pc=mkPC();await pc.setRemoteDescription(data);await pc.setLocalDescription(await pc.createAnswer());sock.emit('call:answer',{to:CALL.peer,data:pc.localDescription})});
+ sock.on('call:answer',async({data})=>{if(!CALL?.pc)return;await CALL.pc.setRemoteDescription(data);(CALL.q||[]).forEach(c=>CALL.pc.addIceCandidate(c));CALL.q=[]});
+ sock.on('call:ice',({data})=>{if(!CALL)return;if(CALL.pc?.remoteDescription)CALL.pc.addIceCandidate(data);else(CALL.q=CALL.q||[]).push(data)});
+ sock.on('call:ended',()=>hang(false,t('ended')));sock.on('call:rejected',()=>hang(false,t('rejected')));
+ sock.on('call:failed',({reason})=>hang(false,t('f_'+reason)))}
+// ===== Thông báo đẩy + xóa tài khoản =====
+const u8=b=>{const r=atob((b+'='.repeat((4-b.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from([...r].map(c=>c.charCodeAt(0)))};
+async function subPush(){const reg=await navigator.serviceWorker.ready,{publicKey}=await api('push/key');
+ const old=await reg.pushManager.getSubscription();if(old)await old.unsubscribe();
+ const s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(publicKey)});await api('push/subscribe','POST',s.toJSON())}
+async function enablePush(){try{if(!('serviceWorker' in navigator)||!window.PushManager||!window.Notification)return alert(t('pushNo'));
+ if(await Notification.requestPermission()!=='granted')return alert(t('pushNo'));await subPush();alert(t('pushOk'))}catch(e){alert(t('pushNo'))}}
+function initPush(){if(window.Notification&&Notification.permission==='granted'&&'serviceWorker' in navigator&&window.PushManager)subPush().catch(()=>{})}
+async function delAccount(){if(!confirm(t('delConfirm')))return;const p=prompt(t('delPwd'));if(!p)return;try{await api('me','DELETE',{password:p});logout()}catch(e){alert(e.message)}}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+T?start():loginView();
+</script></body></html>
